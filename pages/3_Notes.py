@@ -3,7 +3,7 @@ from utils import (require_api_key, show_api_error, ensure_registered,
                    log_usage, show_gov_banner, check_rate_limit, show_disclaimer)
 from validation import (CLASSES, SUBJECTS, validate_input,
                         check_topic_relevance, check_response_contamination)
-from ai_engine import stream_content
+from ai_engine import stream_content, InvalidTopicError
 
 st.set_page_config(page_title="Study Notes - Padhai AI", page_icon="📝", layout="wide")
 
@@ -90,6 +90,12 @@ if generate_btn:
                 if not clean:
                     response_valid = False
                     st.warning(f"⚠️ {warn}")
+            except InvalidTopicError as e:
+                st.error(f"❌ {e}")
+                response_valid = False
+                log_usage("Notes", selected_subject, topic,
+                          valid_input=False, ai_called=True, response_valid=False)
+                st.stop()
             except Exception as e:
                 show_api_error(e)
                 response_valid = False

@@ -3,7 +3,7 @@ from utils import (require_api_key, show_api_error, ensure_registered,
                    log_usage, show_gov_banner, show_gov_footer,
                    check_rate_limit, show_disclaimer)
 from validation import CLASSES, SUBJECTS, validate_input, check_response_contamination
-from ai_engine import stream_content
+from ai_engine import stream_content, InvalidTopicError
 
 st.set_page_config(page_title="AI Tutor - Padhai AI", page_icon="🤖", layout="wide")
 
@@ -104,6 +104,10 @@ if prompt := st.chat_input(f"Apna sawal likhein... ({selected_class} | {selected
 
             show_disclaimer()
             show_gov_footer()
+        except InvalidTopicError as e:
+            placeholder.empty()
+            st.error(f"❌ {e}")
+            response_valid = False
         except Exception as e:
             show_api_error(e)
             response_valid = False

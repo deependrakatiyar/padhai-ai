@@ -6,7 +6,7 @@ from utils import (require_api_key, show_api_error, ensure_registered,
                    check_rate_limit, show_disclaimer)
 from validation import (CLASSES, SUBJECTS, validate_input,
                         check_topic_relevance, check_response_contamination)
-from ai_engine import generate_json
+from ai_engine import generate_json, InvalidTopicError
 
 st.set_page_config(page_title="Quiz Practice - Padhai AI", page_icon="❓", layout="wide")
 
@@ -91,6 +91,10 @@ if generate_btn:
                     log_usage("Quiz", selected_subject, topic,
                               valid_input=True, ai_called=True, response_valid=response_valid)
                     st.rerun()
+                except InvalidTopicError as e:
+                    st.error(f"❌ {e}")
+                    log_usage("Quiz", selected_subject, topic,
+                              valid_input=False, ai_called=True, response_valid=False)
                 except Exception as e:
                     show_api_error(e)
                     log_usage("Quiz", selected_subject, topic,

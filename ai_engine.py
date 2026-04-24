@@ -5,6 +5,24 @@ All AI calls go through this module to enforce academic correctness.
 from typing import Optional, Generator
 from utils import MODEL, get_client
 
+
+class InvalidTopicError(Exception):
+    """Raised when the model returns its out-of-scope refusal marker."""
+    pass
+
+
+_INVALID_MARKER = "INVALID INPUT"
+_BUFFER_SIZE = 40  # chars buffered before first yield — enough to detect the marker
+
+
+def _check_invalid(text: str) -> None:
+    """Raise InvalidTopicError if the model returned the refusal marker."""
+    if text.strip().upper().startswith(_INVALID_MARKER):
+        raise InvalidTopicError(
+            "Yeh topic is subject ke syllabus mein nahi hai. "
+            "Kripya sahi subject aur topic enter karein."
+        )
+
 _SYSTEM_TEMPLATE = (
     "You are Padhai AI, an NCERT-certified academic assistant for MP Board students.\n\n"
     "Assignment:\n"
@@ -90,23 +108,40 @@ def stream_content(cls: str, subject: str, topic: str, medium: str,
                    max_tokens: int = 1000) -> Generator:
     """
     Streaming generator for AI Tutor, Notes, and Important Questions.
-    Raises on API error — caller is responsible for handling.
+    Buffers the first _BUFFER_SIZE chars to detect INVALID INPUT before
+    yielding anything to the caller. Raises InvalidTopicError or API errors —
+    caller is responsible for handling.
     """
     messages = _build_messages(cls, subject, topic, medium, feature, extra, history)
     stream = get_client().chat.completions.create(
         model=MODEL, messages=messages, stream=True, max_tokens=max_tokens,
     )
+    buffer = ""
+    buffer_flushed = False
     for chunk in stream:
         text = chunk.choices[0].delta.content
-        if text:
+        if not text:
+            continue
+        if not buffer_flushed:
+            buffer += text
+            if len(buffer) >= _BUFFER_SIZE:
+                _check_invalid(buffer)
+                buffer_flushed = True
+                yield buffer
+                buffer = ""
+        else:
             yield text
+    # Flush remainder — handles short responses that never filled the buffer
+    if buffer:
+        _check_invalid(buffer)
+        yield buffer
 
 
 def generate_json(cls: str, subject: str, topic: str, medium: str,
                   extra: Optional[dict] = None) -> str:
     """
     Non-streaming JSON mode call for Quiz generation.
-    Returns raw JSON string. Raises on API error — caller handles.
+    Returns raw JSON string. Raises InvalidTopicError or API errors — caller handles.
     """
     messages = _build_messages(cls, subject, topic, medium, "Quiz", extra)
     response = get_client().chat.completions.create(
@@ -115,4 +150,6 @@ def generate_json(cls: str, subject: str, topic: str, medium: str,
         response_format={"type": "json_object"},
         max_tokens=2000,
     )
-    return response.choices[0].message.content.strip()
+    content = (response.choices[0].message.content or "").strip()
+    _check_invalid(content)
+    return content
