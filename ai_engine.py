@@ -2,8 +2,39 @@
 Padhai AI — Centralized NCERT-Aligned AI Engine.
 All AI calls go through this module to enforce academic correctness.
 """
+import re as _re
+import time
 from typing import Optional, Generator
 from utils import MODEL, get_client
+
+_MAX_RETRIES = 3
+_BACKOFF_BASE = 2  # seconds; wait = BACKOFF_BASE ** attempt, capped at 30s
+
+_TRANSIENT_CODES = ("429", "500", "502", "503", "504")
+_TRANSIENT_KEYWORDS = ("rate_limit", "connection", "timeout", "overloaded")
+
+
+def _is_transient(err: str) -> bool:
+    return any(c in err for c in _TRANSIENT_CODES) or \
+           any(k in err.lower() for k in _TRANSIENT_KEYWORDS)
+
+
+def _retry_wait(err: str, attempt: int) -> float:
+    """Return seconds to wait before the next attempt."""
+    m = _re.search(r'try again in (\d+\.?\d*)s', err)
+    return min(float(m.group(1)) + 1 if m else _BACKOFF_BASE ** (attempt + 1), 30)
+
+
+def _call_with_retry(fn):
+    """Call fn() up to _MAX_RETRIES times, backing off on transient errors."""
+    for attempt in range(_MAX_RETRIES):
+        try:
+            return fn()
+        except Exception as e:
+            err = str(e)
+            if not _is_transient(err) or attempt == _MAX_RETRIES - 1:
+                raise
+            time.sleep(_retry_wait(err, attempt))
 
 
 class InvalidTopicError(Exception):
@@ -113,9 +144,9 @@ def stream_content(cls: str, subject: str, topic: str, medium: str,
     caller is responsible for handling.
     """
     messages = _build_messages(cls, subject, topic, medium, feature, extra, history)
-    stream = get_client().chat.completions.create(
+    stream = _call_with_retry(lambda: get_client().chat.completions.create(
         model=MODEL, messages=messages, stream=True, max_tokens=max_tokens,
-    )
+    ))
     buffer = ""
     buffer_flushed = False
     for chunk in stream:
@@ -144,12 +175,12 @@ def generate_json(cls: str, subject: str, topic: str, medium: str,
     Returns raw JSON string. Raises InvalidTopicError or API errors — caller handles.
     """
     messages = _build_messages(cls, subject, topic, medium, "Quiz", extra)
-    response = get_client().chat.completions.create(
+    response = _call_with_retry(lambda: get_client().chat.completions.create(
         model=MODEL,
         messages=messages,
         response_format={"type": "json_object"},
         max_tokens=2000,
-    )
+    ))
     content = (response.choices[0].message.content or "").strip()
     _check_invalid(content)
     return content

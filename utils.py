@@ -49,14 +49,73 @@ def require_api_key() -> bool:
     st.info("👈 Sidebar mein apni **free Groq API key** enter karo.")
     return False
 
+def _server_request_count(session_id: str) -> int:
+    """Count today's AI calls for this session_id from Supabase. Returns 0 on any error (fail-open)."""
+    if _req is None:
+        return 0
+    base = _sb_base()
+    if not base:
+        return 0
+    key = _secret("SUPABASE_SERVICE_KEY") or _secret("SUPABASE_KEY")
+    if not key:
+        return 0
+    try:
+        today = datetime.now().strftime("%Y-%m-%d")
+        r = _req.get(
+            f"{base}/rest/v1/usage_logs",
+            headers={
+                "apikey": key,
+                "Authorization": f"Bearer {key}",
+                "Prefer": "count=exact",
+            },
+            params={
+                "session_id": f"eq.{session_id}",
+                "ai_called": "eq.true",
+                "created_at": f"gte.{today}T00:00:00",
+                "select": "session_id",
+                "limit": "0",
+            },
+            timeout=2,
+        )
+        if r.status_code == 200:
+            cr = r.headers.get("Content-Range", "*/0")
+            try:
+                return int(cr.split("/")[-1])
+            except (ValueError, IndexError):
+                return 0
+    except Exception:
+        pass
+    return 0
+
+
 def check_rate_limit() -> bool:
     count = st.session_state.get("request_count", 0)
+
+    # Client-side fast check
     if count >= MAX_REQUESTS_PER_SESSION:
         st.warning(
             f"⚠️ **Session limit ({MAX_REQUESTS_PER_SESSION} requests) reach ho gayi.**  \n"
             "Browser tab refresh karo ya kal dobara aao. Groq free tier ka fair-use limit hai."
         )
         return False
+
+    # Server-side check only on the first request of a session —
+    # syncs the client counter with actual DB usage so multi-tab and
+    # post-refresh abuse is caught without adding latency to every call.
+    if count == 0:
+        session_id = st.session_state.get("user_info", {}).get("session_id", "")
+        if session_id:
+            server_count = _server_request_count(session_id)
+            if server_count >= MAX_REQUESTS_PER_SESSION:
+                st.warning(
+                    f"⚠️ **Aaj ki limit ({MAX_REQUESTS_PER_SESSION} requests) reach ho gayi.**  \n"
+                    "Kal dobara aao. Groq free tier ka fair-use limit hai."
+                )
+                return False
+            # Sync client counter with server so the client limit is accurate
+            st.session_state.request_count = server_count
+            count = server_count
+
     st.session_state.request_count = count + 1
     return True
 
@@ -199,10 +258,14 @@ def show_gov_footer():
 # ── Registration ──────────────────────────────────────────────────────────────
 
 MP_DISTRICTS = [
-    "Raisen","Bhopal","Indore","Jabalpur","Gwalior","Ujjain","Sagar",
-    "Rewa","Satna","Dewas","Chhindwara","Ratlam","Vidisha","Hoshangabad",
-    "Mandla","Seoni","Balaghat","Betul","Damoh","Katni","Murena",
-    "Shivpuri","Guna","Datia","Tikamgarh","Chhatarpur","Panna","Niwari","Other",
+    "Agar Malwa","Alirajpur","Anuppur","Ashoknagar","Balaghat","Barwani",
+    "Betul","Bhind","Bhopal","Burhanpur","Chhatarpur","Chhindwara","Damoh",
+    "Datia","Dewas","Dhar","Dindori","Guna","Gwalior","Harda","Hoshangabad",
+    "Indore","Jabalpur","Jhabua","Katni","Khandwa","Khargone","Maihar",
+    "Mandla","Mandsaur","Mauganj","Morena","Narsinghpur","Neemuch","Niwari",
+    "Pandhurna","Panna","Raisen","Rajgarh","Ratlam","Rewa","Sagar","Satna",
+    "Sehore","Seoni","Shahdol","Shajapur","Sheopur","Shivpuri","Sidhi",
+    "Singrauli","Tikamgarh","Ujjain","Umaria","Vidisha","Other",
 ]
 CLASSES = ["Class 6","Class 7","Class 8","Class 9","Class 10","Class 11","Class 12"]
 
