@@ -58,7 +58,7 @@ _CROSS_SIGNALS: dict = {
                          "mughal empire", "trigonometry"],
 }
 
-_UNSAFE = re.compile(r'[<>{};|`$\\]')
+_UNSAFE = re.compile(r'[<>{}|`\\]')  # $  and ; removed — valid in Math/Physics topics
 
 # Keywords that, if found in a TOPIC STRING, signal the topic belongs to a
 # different subject. Hard-block before calling the AI (1 hit = blocked).
@@ -70,7 +70,7 @@ _TOPIC_CROSS_SIGNALS: dict = {
                          "trigonometry", "newton's law", "mitosis", "periodic table",
                          "cell division"],
     "Sanskrit":         ["quadratic", "chemical formula", "photosynthesis",
-                         "trigonometry", "newton", "mitosis", "atom",
+                         "trigonometry", "newton", "mitosis", "atomic",
                          "democracy", "parliament", "election commission"],
     "Mathematics":      ["photosynthesis", "mughal empire", "french revolution",
                          "cell division", "mitosis", "animal kingdom",

@@ -16,6 +16,30 @@ def _parse_quiz(raw: str) -> list:
     return data.get("questions", data) if isinstance(data, dict) else data
 
 
+def _validate_quiz(questions) -> list:
+    """Normalise and validate parsed quiz questions. Raises ValueError on fatal schema errors."""
+    if not isinstance(questions, list) or not questions:
+        raise ValueError("AI ne valid quiz nahi diya. Dobara try karein.")
+    valid = []
+    for q in questions:
+        if not isinstance(q, dict):
+            continue
+        if not all(k in q for k in ("question", "options", "correct")):
+            continue
+        opts = q.get("options", {})
+        if not isinstance(opts, dict) or len(opts) < 2:
+            continue
+        # Normalise option keys and correct-answer key to uppercase
+        opts_norm = {str(k).strip().upper(): str(v) for k, v in opts.items()}
+        correct = str(q.get("correct", "")).strip().upper()[:1]
+        if correct not in opts_norm:
+            continue
+        valid.append({**q, "options": opts_norm, "correct": correct})
+    if not valid:
+        raise ValueError("AI ne valid questions nahi diye. Topic change karke dobara try karein.")
+    return valid
+
+
 def score_color(score, total):
     pct = score / total * 100
     if pct >= 80: return "green"
@@ -80,7 +104,7 @@ if generate_btn:
                         response_valid = False
                         st.warning(f"⚠️ {warn}")
 
-                    questions = _parse_quiz(raw)
+                    questions = _validate_quiz(_parse_quiz(raw))
                     st.session_state.quiz_questions = questions
                     st.session_state.quiz_answers   = {}
                     st.session_state.quiz_submitted = False
@@ -95,6 +119,10 @@ if generate_btn:
                     st.error(f"❌ {e}")
                     log_usage("Quiz", selected_subject, topic,
                               valid_input=False, ai_called=True, response_valid=False)
+                except ValueError as e:
+                    st.error(f"❌ {e}")
+                    log_usage("Quiz", selected_subject, topic,
+                              valid_input=True, ai_called=True, response_valid=False)
                 except Exception as e:
                     show_api_error(e)
                     log_usage("Quiz", selected_subject, topic,

@@ -98,7 +98,8 @@ if generate_btn:
                 st.stop()
             except Exception as e:
                 show_api_error(e)
-                response_valid = False
+                log_usage("Notes", selected_subject, topic,
+                          valid_input=True, ai_called=True, response_valid=False)
                 st.stop()
 
             st.session_state.notes_content = full_text

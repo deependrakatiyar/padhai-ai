@@ -1,5 +1,5 @@
 import streamlit as st
-import os
+from utils import get_api_key
 
 st.set_page_config(
     page_title="Padhai AI - MP Board Study Platform",
@@ -190,8 +190,6 @@ with st.sidebar:
 
     # API Connection Test
     st.markdown("### 🔌 API Connection Test")
-    import sys as _sys; _sys.path.append(".")
-    from utils import get_api_key
     api_key = get_api_key()
     if not api_key:
         st.warning("⚠️ Groq API Key set nahi hai.")

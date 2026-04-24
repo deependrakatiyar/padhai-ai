@@ -42,7 +42,7 @@ for msg in st.session_state.tutor_messages:
     with st.chat_message(msg["role"], avatar=avatar):
         st.markdown(msg["content"])
 
-if not st.session_state.tutor_messages:
+if not st.session_state.tutor_messages and not st.session_state.get("_pending_prompt"):
     st.markdown("**Suggested Sawale:**")
     suggestions = {
         "Mathematics": ["Pythagoras theorem kya hai?", "Quadratic equation solve kaise karte hain?", "Trigonometry ke basic formulas kya hain?"],
@@ -57,10 +57,13 @@ if not st.session_state.tutor_messages:
     cols = st.columns(3)
     for i, q in enumerate(suggestions[:3]):
         if cols[i].button(q, use_container_width=True, key=f"sug_{i}"):
-            st.session_state.tutor_messages.append({"role": "user", "content": q})
+            st.session_state["_pending_prompt"] = q
             st.rerun()
 
-if prompt := st.chat_input(f"Apna sawal likhein... ({selected_class} | {selected_subject})"):
+typed = st.chat_input(f"Apna sawal likhein... ({selected_class} | {selected_subject})")
+prompt = typed or st.session_state.pop("_pending_prompt", None)
+
+if prompt:
     # Validate: sanitise query; max 800 chars for conversational questions
     valid, err = validate_input(selected_subject, prompt, selected_class, max_len=800)
     if not valid:

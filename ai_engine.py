@@ -113,8 +113,9 @@ def _build_messages(cls: str, subject: str, topic: str, medium: str,
     if extra:
         try:
             feat_instr = feat_instr.format(**extra)
-        except KeyError:
-            pass
+        except KeyError as _missing:
+            import warnings as _w
+            _w.warn(f"Prompt template missing key {_missing} for feature '{feature}'", stacklevel=2)
 
     user_content = (
         f"Class: {cls}\n"

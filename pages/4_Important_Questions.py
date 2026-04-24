@@ -86,8 +86,7 @@ if generate_btn:
                     for chunk in stream_content(
                         cls=selected_class, subject=selected_subject,
                         topic=topic, medium=medium, feature="Important Questions",
-                        extra={"q_type": q_type,
-                               "type_instruction": _Q_INSTRUCTIONS.get(q_type, "")},
+                        extra={"q_type": q_type},
                         max_tokens=1200,
                     ):
                         full_text += chunk
@@ -106,7 +105,8 @@ if generate_btn:
                 st.stop()
             except Exception as e:
                 show_api_error(e)
-                response_valid = False
+                log_usage("Important Questions", selected_subject, topic,
+                          valid_input=True, ai_called=True, response_valid=False)
                 st.stop()
 
             st.session_state.iq_content = full_text

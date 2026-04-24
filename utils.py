@@ -126,9 +126,9 @@ def show_api_error(e: Exception):
         secs = int(float(m.group(1))) + 1 if m else 30
         st.warning(f"⏳ **Rate limit — {secs} seconds baad dobara try karo.**")
     elif "401" in err or "invalid_api_key" in err.lower():
-        st.error("❌ **Invalid API Key.** Sahi key enter karo.")
+        st.error("❌ **Invalid API Key.** Sidebar mein sahi Groq API key enter karo.")
         st.session_state.pop("groq_api_key", None)
-        st.rerun()
+        # No st.rerun() — let the user read the error and enter a new key naturally
     else:
         st.error("❌ Error:")
         st.code(err, language="text")
@@ -316,7 +316,7 @@ def ensure_registered() -> bool:
             "class":       cls,
             "school_name": school.strip(),
             "district":    dist,
-            "session_id":  str(uuid.uuid4())[:8],
+            "session_id":  uuid.uuid4().hex,
         }
         st.session_state.user_registered = True
         st.session_state.user_info = info
