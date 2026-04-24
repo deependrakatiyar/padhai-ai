@@ -213,6 +213,18 @@ def ensure_registered() -> bool:
     show_gov_banner()
     st.markdown("## 👋 Padhai AI mein Swagat Hai!")
     st.markdown("Shuru karne se pehle apni details bharo — **sirf ek baar:**")
+
+    st.markdown("""
+<div style="background:#fff3e0;border-left:4px solid #e65100;border-radius:6px;
+            padding:10px 14px;margin:12px 0;font-size:0.82rem;color:#444;">
+  <strong>🔒 Data Privacy Notice (DPDP Act 2023)</strong><br>
+  Padhai AI aapka <strong>naam, school, district aur class</strong> collect karta hai
+  — sirf usage analytics ke liye (District Administration Raisen / NIC MP).<br>
+  Yeh data third parties ko share nahi kiya jata. Koi bhi personal information
+  publicly display nahi hogi. Data secure cloud storage (Supabase) mein rakhha jata hai.
+  <br><strong>Platform sirf Class 6–12 ke students ke liye hai.</strong>
+</div>""", unsafe_allow_html=True)
+
     st.divider()
 
     with st.form("reg_form"):
@@ -221,9 +233,17 @@ def ensure_registered() -> bool:
         cls   = col1.selectbox("Class *", CLASSES)
         dist  = col2.selectbox("District *", MP_DISTRICTS)
         school = st.text_input("School ka Naam *", placeholder="e.g., Govt. HS School Raisen", max_chars=120)
+        consent = st.checkbox(
+            "Main samajhta/samajhti hoon ki mera naam, school aur class "
+            "analytics ke liye securely store kiya jayega. "
+            "(**Privacy Notice** upar padhi hai.)"
+        )
         done  = st.form_submit_button("✅ Shuru Karein!", use_container_width=True, type="primary")
 
     if done:
+        if not consent:
+            st.error("❌ Shuru karne ke liye Privacy Notice accept karna zaroori hai.")
+            return False
         err = validate_text(name, "Naam") or validate_text(school, "School ka naam", min_len=3)
         if err:
             st.error(err)

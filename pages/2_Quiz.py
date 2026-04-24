@@ -1,5 +1,6 @@
 import streamlit as st
 import json
+import html as _html
 from utils import (require_api_key, show_api_error, ensure_registered,
                    log_usage, show_gov_banner, show_gov_footer,
                    check_rate_limit, show_disclaimer)
@@ -139,12 +140,18 @@ if st.session_state.quiz_questions:
             correct_ans = q["correct"]
             is_correct  = user_ans == correct_ans
             bg = "#e8f5e9" if is_correct else "#ffebee"
+            # Escape all AI-generated content before injecting into HTML
+            q_text    = _html.escape(str(q.get("question", "")))
+            u_opt     = _html.escape(str(q["options"].get(user_ans, "")))
+            c_opt     = _html.escape(str(q["options"].get(correct_ans, "")))
+            expl      = _html.escape(str(q.get("explanation", "")))
+            ans_color = "green" if is_correct else "red"
             st.markdown(f"""
             <div style="background:{bg}; border-radius:10px; padding:14px; margin-bottom:12px;">
-                <strong>{'✅' if is_correct else '❌'} Q{i+1}.</strong> {q['question']}<br>
-                <span style="color:{'green' if is_correct else 'red'};">Aapka: <strong>{user_ans}. {q['options'].get(user_ans,'')}</strong></span><br>
-                <span style="color:green;">Sahi: <strong>{correct_ans}. {q['options'][correct_ans]}</strong></span><br>
-                <span style="color:#555; font-size:0.9rem;">💡 {q.get('explanation','')}</span>
+                <strong>{'✅' if is_correct else '❌'} Q{i+1}.</strong> {q_text}<br>
+                <span style="color:{ans_color};">Aapka: <strong>{user_ans}. {u_opt}</strong></span><br>
+                <span style="color:green;">Sahi: <strong>{correct_ans}. {c_opt}</strong></span><br>
+                <span style="color:#555; font-size:0.9rem;">💡 {expl}</span>
             </div>
             """, unsafe_allow_html=True)
 

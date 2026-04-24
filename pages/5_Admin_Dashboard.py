@@ -1,5 +1,6 @@
 import streamlit as st
 import os
+import hmac
 import pandas as pd
 from datetime import date, timedelta
 from utils import _sb_get, run_connection_test, _secret, generate_impact_report
@@ -8,7 +9,12 @@ st.set_page_config(page_title="Admin Dashboard - Padhai AI", page_icon="📊", l
 
 # ── Auth ──────────────────────────────────────────────────────────────────────
 
-ADMIN_PASS = _secret("ADMIN_PASSWORD") or "nic_raisen_2024"
+ADMIN_PASS = _secret("ADMIN_PASSWORD")
+
+if not ADMIN_PASS:
+    st.error("❌ **ADMIN_PASSWORD secret is not configured.** "
+             "Set it in Streamlit secrets before accessing this page.")
+    st.stop()
 
 if not st.session_state.get("admin_auth"):
     st.markdown("""
@@ -20,7 +26,7 @@ if not st.session_state.get("admin_auth"):
     st.markdown("## 🔐 Admin Login — NIC Raisen DIO")
     pwd = st.text_input("Password", type="password")
     if st.button("Login", type="primary", use_container_width=True):
-        if pwd == ADMIN_PASS:
+        if hmac.compare_digest(pwd, ADMIN_PASS):
             st.session_state.admin_auth = True
             st.rerun()
         else:
